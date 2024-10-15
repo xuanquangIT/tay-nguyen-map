@@ -1,5 +1,5 @@
 import streamlit as st
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 import networkx as nx
 from simpleai.search import breadth_first, SearchProblem
 import sys
@@ -105,33 +105,93 @@ def calculate_total_distance(path):
         total_distance += graph[path[i]][path[i + 1]]
     return total_distance
 
-# Draw the map and highlight the path
+# Draw the map and show distances for all paths
 def draw_map(path, start, goal):
-    G = nx.Graph()
+    # Create figure
+    fig = go.Figure()
+
+    # Add edges for the entire graph and display distances
     for city, neighbors in graph.items():
         for neighbor, distance in neighbors.items():
-            G.add_edge(city, neighbor, weight=distance)
+            x0, y0 = coordinates[city]
+            x1, y1 = coordinates[neighbor]
+            
+            # Draw lines between cities
+            fig.add_trace(go.Scatter(
+                x=[x0, x1], y=[y0, y1],
+                mode="lines",
+                line=dict(color="lightblue", width=2),
+                hoverinfo='none'
+            ))
 
-    pos = coordinates
-    plt.figure(figsize=(8, 6))
+            # Calculate the midpoint and add the distance text
+            midpoint_x = (x0 + x1) / 2
+            midpoint_y = (y0 + y1) / 2
+            fig.add_trace(go.Scatter(
+                x=[midpoint_x], y=[midpoint_y],
+                text=[f'{distance} km'],
+                mode="text",
+                textposition="top center",
+                hoverinfo='none'
+            ))
 
-    nx.draw(G, pos, with_labels=True, node_color='lightblue', node_size=1000, font_size=8, font_weight='semibold')
-
+    # Add edges for the highlighted path (in red)
     if path:
-        path_edges = list(zip(path[:-1], path[1:]))
-        nx.draw_networkx_edges(G, pos, edgelist=path_edges, edge_color='red', width=3)
-        nx.draw_networkx_nodes(G, pos, nodelist=path[1:-1], node_color='red', node_size=1000)
+        for i in range(len(path) - 1):
+            city, neighbor = path[i], path[i + 1]
+            x0, y0 = coordinates[city]
+            x1, y1 = coordinates[neighbor]
 
-    nx.draw_networkx_nodes(G, pos, nodelist=[start], node_color='green', node_size=1200)
-    nx.draw_networkx_nodes(G, pos, nodelist=[goal], node_color='blue', node_size=1200)
+            # Highlight the red path
+            fig.add_trace(go.Scatter(
+                x=[x0, x1], y=[y0, y1],
+                mode="lines",
+                line=dict(color="red", width=4),
+                hoverinfo='none'
+            ))
 
-    for city, neighbors in graph.items():
-        for neighbor, distance in neighbors.items():
-            mid_x = (pos[city][0] + pos[neighbor][0]) / 2
-            mid_y = (pos[city][1] + pos[neighbor][1]) / 2
-            plt.text(mid_x, mid_y, f"{distance} km", fontsize=8, ha='center', color='black')
+    # Add start and goal nodes
+    fig.add_trace(go.Scatter(
+        x=[coordinates[start][0]], y=[coordinates[start][1]],
+        mode='markers+text',
+        marker=dict(size=15, color='green'),
+        text=[start], textposition="top center",
+        hoverinfo='text',
+        name='Start'
+    ))
+    fig.add_trace(go.Scatter(
+        x=[coordinates[goal][0]], y=[coordinates[goal][1]],
+        mode='markers+text',
+        marker=dict(size=15, color='blue'),
+        text=[goal], textposition="top center",
+        hoverinfo='text',
+        name='Goal'
+    ))
 
-    st.pyplot(plt)
+    # Add other nodes (excluding start and goal)
+    for city, (x, y) in coordinates.items():
+        if city not in (start, goal):
+            fig.add_trace(go.Scatter(
+                x=[x], y=[y],
+                mode='markers+text',
+                marker=dict(size=10, color='lightblue'),
+                text=[city], textposition="top center",
+                hoverinfo='text',
+                name=city
+            ))
+
+    # Layout settings
+    fig.update_layout(
+        title="Tìm đường đi ngắn nhất - Tây Nguyên",
+        xaxis=dict(showgrid=False, zeroline=False, visible=False),
+        yaxis=dict(showgrid=False, zeroline=False, visible=False),
+        showlegend=False,
+        height=600,
+        margin=dict(l=0, r=0, t=30, b=0)
+    )
+
+    # Display the figure in Streamlit
+    st.plotly_chart(fig)
 
 # Streamlit Interface
 st.title("Tìm đường đi ngắn nhất - Tây Nguyên")
